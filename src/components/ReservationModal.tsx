@@ -12,6 +12,7 @@ export default function ReservationModal({
   onSuccess: () => void
 }) {
   const [name, setName] = useState('')
+  const [trackingCode, setTrackingCode] = useState<string | null>(null)
   const [phone, setPhone] = useState('')
   const [size, setSize] = useState('')
   const [quantity, setQuantity] = useState(1)
@@ -20,14 +21,15 @@ export default function ReservationModal({
 
   async function submit(e: FormEvent) {
     e.preventDefault()
+
     setBusy(true)
     setMessage('')
 
     const { data, error } = await supabase.rpc('create_reservation', {
       p_product_id: product.id,
-      p_customer_name: name.trim(),
-      p_phone: phone.trim(),
-      p_size: size.trim() || null,
+      p_customer_name: name,
+      p_phone: phone,
+      p_size: size,
       p_quantity: quantity,
     })
 
@@ -38,61 +40,118 @@ export default function ReservationModal({
       return
     }
 
-    setMessage(`Reserva confirmada: ${data}`)
-    setTimeout(onSuccess, 900)
+    setTrackingCode(data)
   }
 
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
       <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <button className="close-btn" onClick={onClose} aria-label="Cerrar">×</button>
-        <p className="eyebrow">Reserva</p>
-        <h2>{product.name}</h2>
-        <p className="muted">No se realiza ningún pago aquí. La reserva indica qué producto debo comprar en Canadá.</p>
+        <button
+          className="close-btn"
+          onClick={onClose}
+          aria-label="Cerrar"
+        >
+          ×
+        </button>
 
-        <form onSubmit={submit} className="form-grid">
-          <label>
-            Nombre *
-            <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Laura" />
-          </label>
+        {trackingCode ? (
+          <div className="reservation-success">
+            <p className="eyebrow">Reserva confirmada</p>
 
-          <label>
-            WhatsApp *
-            <input
-              required
-              type="tel"    
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="300 123 4567"
-            />
-          </label>
+            <h2>¡Tu reserva fue registrada!</h2>
 
-          <label>
-            Talla (opcional)
-            <input
-              value={size}
-              onChange={(e) => setSize(e.target.value)}
-              placeholder="Ej. 9"
-            />
-          </label>
+            <p className="muted">
+              Tu código de reserva es:
+            </p>
 
-          <label>
-            Cantidad *
-            <input
-              required
-              type="number"
-              min="1"
-              value={quantity}
-              onChange={(e) => setQuantity(Number(e.target.value))}
-            />
-          </label>
+            <div className="tracking-code">
+              {trackingCode}
+            </div>
 
-          {message && <div className="form-message">{message}</div>}
+            <p className="muted">
+              Guarda este código. Lo necesitarás junto con tu número
+              de WhatsApp para consultar el estado de tu reserva.
+            </p>
 
-          <button className="primary-btn" disabled={busy}>
-            {busy ? 'Guardando...' : 'Confirmar reserva'}
-          </button>
-        </form>
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={() => {
+                onSuccess()
+                onClose()
+              }}
+            >
+              Cerrar
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="eyebrow">Reserva</p>
+
+            <h2>{product.name}</h2>
+
+            <p className="muted">
+              No se realiza ningún pago aquí. La reserva indica qué
+              producto debo comprar en Canadá.
+            </p>
+
+            <form onSubmit={submit} className="form-grid">
+              <label>
+                Nombre *
+                <input
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Ej. Laura"
+                />
+              </label>
+
+              <label>
+                WhatsApp *
+                <input
+                  required
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="300 123 4567"
+                />
+              </label>
+
+              <label>
+                Talla (opcional)
+                <input
+                  value={size}
+                  onChange={(e) => setSize(e.target.value)}
+                  placeholder="Ej. 39"
+                />
+              </label>
+
+              <label>
+                Cantidad *
+                <input
+                  required
+                  type="number"
+                  min="1"
+                  value={quantity}
+                  onChange={(e) => setQuantity(Number(e.target.value))}
+                />
+              </label>
+
+              {message && (
+                <div className="form-message">
+                  {message}
+                </div>
+              )}
+
+              <button
+                className="primary-btn"
+                disabled={busy}
+              >
+                {busy ? 'Guardando...' : 'Confirmar reserva'}
+              </button>
+            </form>
+          </>
+        )}
       </div>
     </div>
   )

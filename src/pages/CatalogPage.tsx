@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import ProductCard from '../components/ProductCard'
 import { supabase } from '../lib/supabase'
 import type { Product } from '../types'
+import { Link } from 'react-router-dom'
 
 export default function CatalogPage() {
   const [products, setProducts] = useState<Product[]>([])
@@ -36,12 +37,17 @@ export default function CatalogPage() {
   return (
     <main>
       <section className="hero">
-        <div className="hero-badge">Canadá → Colombia · Diciembre</div>
+        <div className="hero-badge">Diciembre</div>
         <h1>Elige lo que quieres.<br />Yo lo compro y te lo llevo.</h1>
         <p>
-          Catálogo privado para familia y amigos. Aparta tu producto antes de que cierre la oferta.
+          Aparta tu producto antes de que cierre la oferta.
         </p>
+        <Link to="/seguimiento" className="tracking-link">
+          Consultar mi reserva
+        </Link>
       </section>
+
+      
 
       <section className="catalog-section">
         <div className="filters">

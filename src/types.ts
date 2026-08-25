@@ -17,10 +17,11 @@ export type Reservation = {
   id: string
   product_id: string
   customer_name: string
-  phone: string | null
-  variant: string | null
+  phone: string
+  size: string | null
   quantity: number
-  status: 'reserved' | 'purchased' | 'ready' | 'delivered' | 'cancelled'
+  status: 'reserved' | 'purchased' | 'delivered' | 'cancelled'
+  tracking_code: string
   created_at: string
   products?: Pick<Product, 'name' | 'brand' | 'price_cop'>
 }

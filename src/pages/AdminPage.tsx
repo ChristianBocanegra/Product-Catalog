@@ -120,20 +120,63 @@ export default function AdminPage() {
         <h2>Reservas</h2>
         <div className="table-wrap">
           <table>
-            <thead><tr><th>Persona</th><th>Producto</th><th>Variante</th><th>Cant.</th><th>Estado</th><th>Acción</th></tr></thead>
+            <thead>
+             <tr>
+               <th>Código</th>
+               <th>Persona</th>
+               <th>WhatsApp</th>
+               <th>Producto</th>
+               <th>Talla</th>
+               <th>Cant.</th>
+               <th>Estado</th>
+               <th>Acción</th>
+             </tr>
+           </thead>
             <tbody>
               {reservations.map((r) => (
                 <tr key={r.id}>
+                  <td>{r.tracking_code}</td>
+
                   <td>{r.customer_name}</td>
-                  <td>{r.products?.brand ? `${r.products.brand} · ` : ''}{r.products?.name}</td>
-                  <td>{r.variant || '—'}</td>
-                  <td>{r.quantity}</td>
-                  <td><span className="status-pill">{r.status}</span></td>
+
                   <td>
-                    <select value={r.status} onChange={e => updateStatus(r.id, e.target.value as Reservation['status'])}>
+                    <a
+                      href={`https://wa.me/${r.phone.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {r.phone}
+                    </a>
+                  </td>
+
+                  <td>
+                    {r.products?.brand ? `${r.products.brand} · ` : ''}
+                    {r.products?.name}
+                  </td>
+
+                  <td>{r.size || '—'}</td>
+
+                  <td>{r.quantity}</td>
+
+                  <td>
+                    {r.status === 'reserved' && 'Apartado'}
+                    {r.status === 'purchased' && 'Comprado'}
+                    {r.status === 'delivered' && 'Entregado'}
+                    {r.status === 'cancelled' && 'Cancelado'}
+                  </td>
+
+                  <td>
+                    <select
+                      value={r.status}
+                      onChange={(e) =>
+                        updateStatus(
+                          r.id,
+                          e.target.value as Reservation['status']
+                        )
+                      }
+                    >
                       <option value="reserved">Apartado</option>
                       <option value="purchased">Comprado</option>
-                      <option value="ready">Listo</option>
                       <option value="delivered">Entregado</option>
                       <option value="cancelled">Cancelado</option>
                     </select>
@@ -149,13 +192,19 @@ export default function AdminPage() {
         <h2>Productos</h2>
         <div className="table-wrap">
           <table>
-            <thead><tr><th>Producto</th><th>Categoría</th><th>Disponibles</th><th>Visible</th><th></th></tr></thead>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th>Visible</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
             <tbody>
               {products.map((p) => (
                 <tr key={p.id}>
                   <td>{p.brand ? `${p.brand} · ` : ''}{p.name}</td>
                   <td>{p.category}</td>
-                  <td>{p.available_quantity}</td>
                   <td>{p.active ? 'Sí' : 'No'}</td>
                   <td><button className="secondary-btn" onClick={() => toggleProduct(p)}>{p.active ? 'Ocultar' : 'Mostrar'}</button></td>
                 </tr>
