@@ -13,6 +13,7 @@ export default function ReservationModal({
 }) {
   const [name, setName] = useState('')
   const [trackingCode, setTrackingCode] = useState<string | null>(null)
+  const [countryCode, setCountryCode] = useState('+57')
   const [phone, setPhone] = useState('')
   const [size, setSize] = useState('')
   const [quantity, setQuantity] = useState(1)
@@ -28,7 +29,7 @@ export default function ReservationModal({
     const { data, error } = await supabase.rpc('create_reservation', {
       p_product_id: product.id,
       p_customer_name: name,
-      p_phone: phone,
+      p_phone: `${countryCode}${phone.replace(/\D/g, '')}`,
       p_size: size,
       p_quantity: quantity,
     })
@@ -102,19 +103,33 @@ export default function ReservationModal({
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ej. Laura"
+                  placeholder="Ej. Juan Pérez"
                 />
               </label>
 
               <label>
                 WhatsApp *
-                <input
-                  required
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="300 123 4567"
-                />
+                
+                <div className="phone-input">
+                  <select
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                    aria-label="Código de país"
+                  >
+                    <option value="+57">🇨🇴 +57</option>
+                    <option value="+1">🇨🇦 +1</option>
+                    <option value="+1">🇺🇸 +1</option>
+                  </select>
+
+                  <input
+                    required
+                    type="tel"
+                    inputMode="numeric"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="302 403 5046"
+                  />
+                </div>
               </label>
 
               <label>

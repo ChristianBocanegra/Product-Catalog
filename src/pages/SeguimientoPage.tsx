@@ -15,6 +15,7 @@ type ReservaConsultada = {
 
 export default function SeguimientoPage() {
   const [codigo, setCodigo] = useState('')
+  const [countryCode, setCountryCode] = useState('+57')
   const [phone, setPhone] = useState('')
   const [reserva, setReserva] = useState<ReservaConsultada | null>(null)
   const [message, setMessage] = useState('')
@@ -29,7 +30,7 @@ export default function SeguimientoPage() {
 
     const { data, error } = await supabase.rpc('consultar_reserva', {
       p_tracking_code: codigo.trim(),
-      p_phone: phone.trim(),
+      p_phone: `${countryCode}${phone.replace(/\D/g, '')}`,
     })
 
     setBusy(false)
@@ -87,13 +88,27 @@ export default function SeguimientoPage() {
 
           <label>
             WhatsApp *
-            <input
-              required
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="300 123 4567"
-            />
+
+            <div className="phone-input">
+              <select
+                value={countryCode}
+                onChange={(e) => setCountryCode(e.target.value)}
+                aria-label="Código de país"
+              >
+                <option value="+57">🇨🇴 +57</option>
+                <option value="+1">🇨🇦 +1</option>
+                <option value="+1">🇺🇸 +1</option>
+              </select>
+
+              <input
+                required
+                type="tel"
+                inputMode="numeric"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="302 403 5046"
+              />
+            </div>
           </label>
 
           {message && <div className="form-message">{message}</div>}

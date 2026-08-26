@@ -210,3 +210,29 @@ th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid #eee8df;
   background: #171717;
   color: white;
 }
+
+.phone-input {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.phone-input select,
+.phone-input input {
+  width: 100%;
+}
+
+.phone-input select {
+  padding: 0 14px;
+  border: 1px solid #ddd4ca;
+  border-radius: 14px;
+  background: white;
+  font: inherit;
+}
+
+@media (max-width: 520px) {
+  .phone-input {
+    grid-template-columns: 105px 1fr;
+  }
+}
