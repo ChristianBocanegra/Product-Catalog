@@ -21,6 +21,20 @@ export default function AdminPage() {
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [form, setForm] = useState(initial)
   const [message, setMessage] = useState('')
+  const [exchangeRate, setExchangeRate] = useState('')
+  const [rateMessage, setRateMessage] = useState('')
+  const costCad = Number(form.price_cad) || 0
+  const saleCop = Number(form.price_cop) || 0
+  const rate = Number(exchangeRate) || 0
+  const [editingProductId, setEditingProductId] = useState<string | null>(null)
+
+  const estimatedCostCop = costCad * rate
+  const estimatedProfitCop = saleCop - estimatedCostCop
+
+  const estimatedMargin =
+    saleCop > 0
+      ? (estimatedProfitCop / saleCop) * 100
+      : 0
 
   async function checkSession() {
     const { data } = await supabase.auth.getSession()
@@ -29,12 +43,80 @@ export default function AdminPage() {
   }
 
   async function load() {
-    const [{ data: p }, { data: r }] = await Promise.all([
-      supabase.from('products').select('*').order('created_at', { ascending: false }),
-      supabase.from('reservations').select('*, products(name, brand, price_cop)').order('created_at', { ascending: false }),
+    const [
+      { data: p },
+      { data: r },
+      { data: settings },
+    ] = await Promise.all([
+      supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false }),
+
+      supabase
+        .from('reservations')
+        .select('*, products(name, brand, price_cop)')
+        .order('created_at', { ascending: false }),
+
+      supabase
+        .from('app_settings')
+        .select('value')
+        .eq('id', 'cad_to_cop')
+        .single(),
     ])
+
     setProducts(p ?? [])
     setReservations((r as Reservation[]) ?? [])
+
+    if (settings?.value) {
+      setExchangeRate(String(settings.value))
+    }
+  }
+
+  function startEditing(product: Product) {
+    setEditingProductId(product.id)
+
+    setForm({
+      name: product.name,
+      brand: product.brand ?? '',
+      category: product.category,
+      description: product.description ?? '',
+      image_url: product.image_url ?? '',
+      price_cad: product.price_cad?.toString() ?? '',
+      price_cop: product.price_cop.toString(),
+      deadline: product.deadline ?? '',
+    })
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    })
+  }
+
+  async function updateExchangeRate() {
+    setRateMessage('')
+
+    const rate = Number(exchangeRate)
+
+    if (!rate || rate <= 0) {
+      setRateMessage('Ingresa una tasa válida.')
+      return
+    }
+
+    const { error } = await supabase
+      .from('app_settings')
+      .update({
+        value: rate,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', 'cad_to_cop')
+
+    if (error) {
+      setRateMessage('No se pudo actualizar la tasa.')
+      return
+    }
+
+    setRateMessage('Tasa actualizada.')
   }
 
   useEffect(() => {
@@ -42,23 +124,53 @@ export default function AdminPage() {
     load()
   }, [])
 
-  async function addProduct(e: FormEvent) {
+  async function saveProduct(e: FormEvent) {
     e.preventDefault()
     setMessage('')
-    const { error } = await supabase.from('products').insert({
+
+    const productData = {
       name: form.name,
       brand: form.brand || null,
       category: form.category,
       description: form.description || null,
       image_url: form.image_url || null,
-      price_cad: form.price_cad ? Number(form.price_cad) : null,
+      price_cad: form.price_cad
+        ? Number(form.price_cad)
+        : null,
       price_cop: Number(form.price_cop),
       deadline: form.deadline || null,
-      active: true,
-    })
-    if (error) return setMessage(error.message)
+    }
+
+    if (editingProductId) {
+      const { error } = await supabase
+        .from('products')
+        .update(productData)
+        .eq('id', editingProductId)
+
+      if (error) {
+        setMessage(error.message)
+        return
+      }
+
+      setMessage('Producto actualizado.')
+      setEditingProductId(null)
+    } else {
+      const { error } = await supabase
+        .from('products')
+        .insert({
+          ...productData,
+          active: true,
+        })
+
+      if (error) {
+        setMessage(error.message)
+        return
+      }
+
+      setMessage('Producto agregado.')
+    }
+
     setForm(initial)
-    setMessage('Producto agregado.')
     load()
   }
 
@@ -97,8 +209,49 @@ export default function AdminPage() {
       </section>
 
       <section className="admin-card">
-        <h2>Agregar producto</h2>
-        <form className="form-grid two-cols" onSubmit={addProduct}>
+        <p className="eyebrow">Configuración</p>
+
+        <h2>Tasa CAD → COP</h2>
+
+        <p className="muted">
+          Esta tasa se usa solamente para calcular costos y ganancias estimadas.
+        </p>
+
+        <div className="exchange-rate-box">
+          <span>1 CAD =</span>
+
+          <input
+            type="number"
+            min="1"
+            value={exchangeRate}
+            onChange={(e) => setExchangeRate(e.target.value)}
+          />
+
+          <span>COP</span>
+        </div>
+
+        {rateMessage && (
+          <div className="form-message">
+            {rateMessage}
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="primary-btn exchange-rate-btn"
+          onClick={updateExchangeRate}
+        >
+          Actualizar tasa
+        </button>
+      </section>
+
+      <section className="admin-card">
+        <h2>
+          {editingProductId
+            ? 'Editar producto'
+            : 'Agregar producto'}
+        </h2>
+        <form className="form-grid two-cols" onSubmit={saveProduct}>
           <label>Producto<input required value={form.name} onChange={e => setForm({...form, name:e.target.value})} /></label>
           <label>Marca<input value={form.brand} onChange={e => setForm({...form, brand:e.target.value})} /></label>
           <label>Categoría
@@ -107,12 +260,68 @@ export default function AdminPage() {
             </select>
           </label>
           <label>Precio venta COP<input type="number" required value={form.price_cop} onChange={e => setForm({...form, price_cop:e.target.value})} /></label>
-          <label>Costo estimado CAD<input type="number" step="0.01" value={form.price_cad} onChange={e => setForm({...form, price_cad:e.target.value})} /></label>
+          <label>Costo CAD<input type="number" step="0.01" value={form.price_cad} onChange={e => setForm({...form, price_cad:e.target.value})} /></label>
+            {costCad > 0 && saleCop > 0 && rate > 0 && (
+              <div className="profit-preview">
+                <div className="profit-preview-header">
+                  <span>Rentabilidad estimada</span>
+                  <small>1 CAD = ${rate.toLocaleString('es-CO')} COP</small>
+                </div>
+
+                <div className="profit-preview-values">
+                  <div>
+                    <span>Costo estimado COP</span>
+                    <strong>
+                      ${estimatedCostCop.toLocaleString('es-CO', {
+                        maximumFractionDigits: 0,
+                      })}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Ganancia estimada</span>
+                    <strong>
+                      ${estimatedProfitCop.toLocaleString('es-CO', {
+                        maximumFractionDigits: 0,
+                      })}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Margen estimado</span>
+                    <strong>
+                      {estimatedMargin.toLocaleString('es-CO', {
+                        minimumFractionDigits: 1,
+                        maximumFractionDigits: 1,
+                      })}%
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            )}
           <label>Fecha límite<input type="date" value={form.deadline} onChange={e => setForm({...form, deadline:e.target.value})} /></label>
           <label>URL de foto<input value={form.image_url} onChange={e => setForm({...form, image_url:e.target.value})} /></label>
           <label className="full">Descripción<textarea rows={3} value={form.description} onChange={e => setForm({...form, description:e.target.value})} /></label>
           {message && <div className="form-message full">{message}</div>}
-          <button className="primary-btn full">Agregar producto</button>
+          <button className="primary-btn full">
+              {editingProductId
+                ? 'Guardar cambios'
+                : 'Agregar producto'}
+            </button>
+
+            {editingProductId && (
+              <button
+                type="button"
+                className="secondary-btn full"
+                onClick={() => {
+                  setEditingProductId(null)
+                  setForm(initial)
+                  setMessage('')
+                }}
+              >
+                Cancelar edición
+              </button>
+            )}
         </form>
       </section>
 
@@ -129,7 +338,7 @@ export default function AdminPage() {
                <th>Talla</th>
                <th>Cant.</th>
                <th>Estado</th>
-               <th>Acción</th>
+               <th>Acciones</th>
              </tr>
            </thead>
             <tbody>
@@ -196,17 +405,46 @@ export default function AdminPage() {
               <tr>
                 <th>Producto</th>
                 <th>Categoría</th>
+                <th>Precio</th>
                 <th>Visible</th>
-                <th>Acción</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {products.map((p) => (
                 <tr key={p.id}>
-                  <td>{p.brand ? `${p.brand} · ` : ''}{p.name}</td>
+                  <td>
+                    {p.brand ? `${p.brand} · ` : ''}
+                    {p.name}
+                  </td>
+
                   <td>{p.category}</td>
+
+                  <td>
+                    ${p.price_cop.toLocaleString('es-CO')}
+                  </td>
+
                   <td>{p.active ? 'Sí' : 'No'}</td>
-                  <td><button className="secondary-btn" onClick={() => toggleProduct(p)}>{p.active ? 'Ocultar' : 'Mostrar'}</button></td>
+
+                  <td>
+                    <div className="product-actions">
+                      <button
+                        type="button"
+                        className="secondary-btn"
+                        onClick={() => startEditing(p)}
+                      >
+                        Editar
+                      </button>
+
+                      <button
+                        type="button"
+                        className="secondary-btn"
+                        onClick={() => toggleProduct(p)}
+                      >
+                        {p.active ? 'Ocultar' : 'Mostrar'}
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
