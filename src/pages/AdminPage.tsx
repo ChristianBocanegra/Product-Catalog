@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { Product, Reservation } from '../types'
@@ -27,6 +27,9 @@ export default function AdminPage() {
   const saleCop = Number(form.price_cop) || 0
   const rate = Number(exchangeRate) || 0
   const [editingProductId, setEditingProductId] = useState<string | null>(null)
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const imageInputRef = useRef<HTMLInputElement>(null)
+
 
   const estimatedCostCop = costCad * rate
   const estimatedProfitCop = saleCop - estimatedCostCop
@@ -124,6 +127,32 @@ export default function AdminPage() {
     load()
   }, [])
 
+  async function uploadProductImages() {
+    const uploadedUrls: string[] = []
+
+    for (const file of imageFiles) {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${crypto.randomUUID()}.${fileExt}`
+      const filePath = `products/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, file)
+
+      if (uploadError) {
+        throw uploadError
+      }
+
+      const { data } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(filePath)
+
+      uploadedUrls.push(data.publicUrl)
+    }
+
+    return uploadedUrls
+  }
+
   async function saveProduct(e: FormEvent) {
     e.preventDefault()
     setMessage('')
@@ -152,25 +181,113 @@ export default function AdminPage() {
         return
       }
 
+      if (imageFiles.length > 0) {
+        try {
+          const uploadedUrls = await uploadProductImages()
+
+          const { data: existingImages, error: existingImagesError } =
+            await supabase
+              .from('product_images')
+              .select('position')
+              .eq('product_id', editingProductId)
+              .order('position', { ascending: false })
+              .limit(1)
+
+          if (existingImagesError) {
+            setMessage(existingImagesError.message)
+            return
+          }
+
+          const nextPosition =
+            existingImages && existingImages.length > 0
+              ? existingImages[0].position + 1
+              : 0
+
+          const imageRows = uploadedUrls.map((url, index) => ({
+            product_id: editingProductId,
+            image_url: url,
+            position: nextPosition + index,
+          }))
+
+          const { error: imagesError } = await supabase
+            .from('product_images')
+            .insert(imageRows)
+
+          if (imagesError) {
+            setMessage(imagesError.message)
+            return
+          }
+
+          await supabase
+            .from('products')
+            .update({
+              image_url: uploadedUrls[0],
+            })
+            .eq('id', editingProductId)
+        } catch (error) {
+          setMessage('No se pudieron guardar las imágenes.')
+          return
+        }
+      }
+
       setMessage('Producto actualizado.')
       setEditingProductId(null)
     } else {
-      const { error } = await supabase
+      const { data: newProduct, error } = await supabase
         .from('products')
         .insert({
           ...productData,
           active: true,
         })
+        .select('id')
+        .single()
 
       if (error) {
         setMessage(error.message)
         return
       }
 
+      if (newProduct && imageFiles.length > 0) {
+        try {
+          const uploadedUrls = await uploadProductImages()
+
+          const imageRows = uploadedUrls.map((url, index) => ({
+            product_id: newProduct.id,
+            image_url: url,
+            position: index,
+          }))
+
+          const { error: imagesError } = await supabase
+            .from('product_images')
+            .insert(imageRows)
+
+          if (imagesError) {
+            setMessage(imagesError.message)
+            return
+          }
+
+          await supabase
+            .from('products')
+            .update({
+              image_url: uploadedUrls[0],
+            })
+            .eq('id', newProduct.id)
+        } catch (error) {
+          setMessage('No se pudieron subir las imágenes.')
+          return
+        }
+      }
+
       setMessage('Producto agregado.')
     }
 
     setForm(initial)
+    setImageFiles([])
+
+    if (imageInputRef.current) {
+      imageInputRef.current.value = ''
+    }
+
     load()
   }
 
@@ -300,7 +417,31 @@ export default function AdminPage() {
               </div>
             )}
           <label>Fecha límite<input type="date" value={form.deadline} onChange={e => setForm({...form, deadline:e.target.value})} /></label>
-          <label>URL de foto<input value={form.image_url} onChange={e => setForm({...form, image_url:e.target.value})} /></label>
+          <label>
+            Fotos del producto
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? [])
+                setImageFiles(files)
+              }}
+            />
+          </label>
+
+          
+          {form.image_url && (
+            <div className="current-product-image">
+              <span>Foto actual</span>
+
+              <img
+                src={form.image_url}
+                alt="Foto actual del producto"
+              />
+            </div>
+          )}
           <label className="full">Descripción<textarea rows={3} value={form.description} onChange={e => setForm({...form, description:e.target.value})} /></label>
           {message && <div className="form-message full">{message}</div>}
           <button className="primary-btn full">
@@ -317,6 +458,10 @@ export default function AdminPage() {
                   setEditingProductId(null)
                   setForm(initial)
                   setMessage('')
+                  setImageFiles([])
+                  if (imageInputRef.current) {
+                    imageInputRef.current.value = ''
+                  }
                 }}
               >
                 Cancelar edición

@@ -3,11 +3,13 @@ import ProductCard from '../components/ProductCard'
 import { supabase } from '../lib/supabase'
 import type { Product } from '../types'
 import { Link } from 'react-router-dom'
+import ProductDetailModal from '../components/ProductDetailModal'
 
 export default function CatalogPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [category, setCategory] = useState('Todos')
   const [loading, setLoading] = useState(true)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
 
   async function loadProducts() {
     setLoading(true)
@@ -69,11 +71,26 @@ export default function CatalogPage() {
         ) : (
           <div className="product-grid">
             {visible.map((product) => (
-              <ProductCard key={product.id} product={product} onReserved={loadProducts} />
+              <ProductCard 
+                key={product.id} 
+                product={product} 
+                onReserved={loadProducts} 
+                onOpen={() => setSelectedProduct(product)} 
+              />
             ))}
           </div>
         )}
       </section>
+
+      {selectedProduct && (
+        <ProductDetailModal
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          onReserve={() => {
+            setSelectedProduct(null)
+          }}
+        />
+      )}
 
       <footer>
         Catálogo privado · Las reservas están sujetas a disponibilidad al momento de la compra.
