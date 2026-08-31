@@ -34,6 +34,14 @@ export default function AdminPage() {
   const estimatedCostCop = costCad * rate
   const estimatedProfitCop = saleCop - estimatedCostCop
 
+  type ProductImage = {
+  id: string
+  image_url: string
+  position: number
+}
+
+const [existingImages, setExistingImages] = useState<ProductImage[]>([])
+
   const estimatedMargin =
     saleCop > 0
       ? (estimatedProfitCop / saleCop) * 100
@@ -76,7 +84,91 @@ export default function AdminPage() {
     }
   }
 
-  function startEditing(product: Product) {
+  async function setCoverImage(imageUrl: string) {
+  if (!editingProductId) return
+
+  const { error } = await supabase
+    .from('products')
+    .update({ image_url: imageUrl })
+    .eq('id', editingProductId)
+
+  if (error) {
+    setMessage(error.message)
+    return
+  }
+
+  setForm((current) => ({
+    ...current,
+    image_url: imageUrl,
+  }))
+
+  setMessage('Foto de portada actualizada.')
+  load()
+}
+
+async function deleteProductImage(image: ProductImage) {
+  if (!editingProductId) return
+
+  const remainingImages = existingImages.filter(
+    (item) => item.id !== image.id
+  )
+
+  const { error } = await supabase
+    .from('product_images')
+    .delete()
+    .eq('id', image.id)
+
+  if (error) {
+    setMessage(error.message)
+    return
+  }
+
+  if (form.image_url === image.image_url) {
+    const newCover =
+      remainingImages.length > 0
+        ? remainingImages[0].image_url
+        : null
+
+    const { error: coverError } = await supabase
+      .from('products')
+      .update({ image_url: newCover })
+      .eq('id', editingProductId)
+
+    if (coverError) {
+      setMessage(coverError.message)
+      return
+    }
+
+    setForm((current) => ({
+      ...current,
+      image_url: newCover ?? '',
+    }))
+  }
+  const marker = '/product-images/'
+
+  if (image.image_url.includes(marker)) {
+    const storagePath = decodeURIComponent(
+      image.image_url.split(marker)[1]
+    )
+
+    const { error: storageError } = await supabase.storage
+      .from('product-images')
+      .remove([storagePath])
+
+    if (storageError) {
+      console.error(
+        'La imagen se eliminó del producto, pero no de Storage:',
+        storageError
+      )
+    }
+  }
+
+  setExistingImages(remainingImages)
+  setMessage('Foto eliminada.')
+  load()
+}
+
+  async function startEditing(product: Product) {
     setEditingProductId(product.id)
 
     setForm({
@@ -89,6 +181,15 @@ export default function AdminPage() {
       price_cop: product.price_cop.toString(),
       deadline: product.deadline ?? '',
     })
+    const { data: images, error } = await supabase
+      .from('product_images')
+      .select('id, image_url, position')
+      .eq('product_id', product.id)
+      .order('position', { ascending: true })
+
+    if (!error) {
+      setExistingImages(images ?? [])
+    }
 
     window.scrollTo({
       top: 0,
@@ -430,18 +531,53 @@ export default function AdminPage() {
               }}
             />
           </label>
+          {editingProductId && existingImages.length > 0 && (
+            <div className="admin-product-images">
+              <span>Fotos actuales</span>
 
-          
-          {form.image_url && (
-            <div className="current-product-image">
-              <span>Foto actual</span>
+              <div className="admin-product-images-grid">
+                {existingImages.map((image) => (
+                  <div
+                    key={image.id}
+                    className="admin-product-image-item"
+                  >
+                    <div
+                      className={
+                        form.image_url === image.image_url
+                          ? 'admin-product-image cover'
+                          : 'admin-product-image'
+                      }
+                    >
+                      <img
+                        src={image.image_url}
+                        alt="Foto del producto"
+                      />
+                    </div>
 
-              <img
-                src={form.image_url}
-                alt="Foto actual del producto"
-              />
+                    {form.image_url === image.image_url ? (
+                      <span className="cover-label">Portada</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="image-action-btn"
+                        onClick={() => setCoverImage(image.image_url)}
+                      >
+                        Usar como portada
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="image-delete-btn"
+                      onClick={() => deleteProductImage(image)}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
+
           <label className="full">Descripción<textarea rows={3} value={form.description} onChange={e => setForm({...form, description:e.target.value})} /></label>
           {message && <div className="form-message full">{message}</div>}
           <button className="primary-btn full">

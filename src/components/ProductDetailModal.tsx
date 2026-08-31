@@ -42,10 +42,10 @@ export default function ProductDetailModal({
       const productImages = data ?? []
       setImages(productImages)
 
-      if (productImages.length > 0) {
-        setSelectedImage(productImages[0].image_url)
-      } else if (product.image_url) {
+      if (product.image_url) {
         setSelectedImage(product.image_url)
+      } else if (productImages.length > 0) {
+        setSelectedImage(productImages[0].image_url)
       }
     }
 
