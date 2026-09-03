@@ -39,7 +39,7 @@ export default function CatalogPage() {
   return (
     <main>
       <section className="hero">
-        <div className="hero-badge">Diciembre</div>
+        <div className="hero-badge">Diciembre 2026</div>
         <h1>Elige lo que quieres.<br />Yo lo compro y te lo llevo.</h1>
         <p>
           Aparta tu producto antes de que cierre la oferta.
