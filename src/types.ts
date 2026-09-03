@@ -24,4 +24,9 @@ export type Reservation = {
   tracking_code: string
   created_at: string
   products?: Pick<Product, 'name' | 'brand' | 'price_cop'>
+  purchased_at: string | null
+  purchase_cost_cad: number | null
+  purchase_exchange_rate: number | null
+  purchase_sale_cop: number | null
+  estimated_profit_cop: number | null
 }

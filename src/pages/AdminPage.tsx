@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { Product, Reservation } from '../types'
@@ -29,6 +29,11 @@ export default function AdminPage() {
   const [editingProductId, setEditingProductId] = useState<string | null>(null)
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const today = new Date().toISOString().slice(0, 10)
+  const endOfYear = `${new Date().getFullYear()}-12-31`
+
+  const [profitStartDate, setProfitStartDate] = useState(today)
+  const [profitEndDate, setProfitEndDate] = useState(endOfYear)
 
 
   const estimatedCostCop = costCad * rate
@@ -39,6 +44,61 @@ export default function AdminPage() {
   image_url: string
   position: number
 }
+
+const profitSummary = useMemo(() => {
+  const purchasedReservations = reservations.filter((reservation) => {
+    if (
+      (reservation.status !== 'purchased' &&
+        reservation.status !== 'delivered') ||
+      !reservation.purchased_at
+    ) {
+      return false
+    }
+
+    const purchaseDate = reservation.purchased_at.slice(0, 10)
+
+    return (
+      purchaseDate >= profitStartDate &&
+      purchaseDate <= profitEndDate
+    )
+  })
+
+  const estimatedProfit = purchasedReservations.reduce(
+    (total, reservation) =>
+      total + (Number(reservation.estimated_profit_cop) || 0),
+    0
+  )
+
+  const estimatedSales = purchasedReservations.reduce(
+    (total, reservation) =>
+      total +
+      (Number(reservation.purchase_sale_cop) || 0) *
+        (Number(reservation.quantity) || 1),
+    0
+  )
+
+  const estimatedCost = purchasedReservations.reduce(
+    (total, reservation) =>
+      total +
+      (Number(reservation.purchase_cost_cad) || 0) *
+        (Number(reservation.purchase_exchange_rate) || 0) *
+        (Number(reservation.quantity) || 1),
+    0
+  )
+
+  const productsPurchased = purchasedReservations.reduce(
+    (total, reservation) =>
+      total + (Number(reservation.quantity) || 1),
+    0
+  )
+
+  return {
+    estimatedProfit,
+    estimatedSales,
+    estimatedCost,
+    productsPurchased,
+  }
+}, [reservations, profitStartDate, profitEndDate])
 
 const [existingImages, setExistingImages] = useState<ProductImage[]>([])
 
@@ -393,7 +453,57 @@ async function deleteProductImage(image: ProductImage) {
   }
 
   async function updateStatus(id: string, status: Reservation['status']) {
-    await supabase.from('reservations').update({ status }).eq('id', id)
+    const reservation = reservations.find((item) => item.id === id)
+
+    if (!reservation) return
+
+    if (status === 'purchased' && reservation.status !== 'purchased') {
+      const product = products.find(
+        (item) => item.id === reservation.product_id
+      )
+
+      if (!product) {
+        setMessage('No se encontró el producto de esta reserva.')
+        return
+      }
+
+      const costCad = Number(product.price_cad) || 0
+      const saleCop = Number(product.price_cop) || 0
+      const rate = Number(exchangeRate) || 0
+      const quantity = Number(reservation.quantity) || 1
+
+      const estimatedCostCop = costCad * rate
+      const estimatedProfitCop =
+        (saleCop - estimatedCostCop) * quantity
+
+      const { error } = await supabase
+        .from('reservations')
+        .update({
+          status,
+          purchased_at: new Date().toISOString(),
+          purchase_cost_cad: costCad,
+          purchase_exchange_rate: rate,
+          purchase_sale_cop: saleCop,
+          estimated_profit_cop: estimatedProfitCop,
+        })
+        .eq('id', id)
+
+      if (error) {
+        setMessage(error.message)
+        return
+      }
+    } else {
+      const { error } = await supabase
+        .from('reservations')
+        .update({ status })
+        .eq('id', id)
+
+      if (error) {
+        setMessage(error.message)
+        return
+      }
+    }
+
     load()
   }
 
@@ -608,6 +718,69 @@ async function deleteProductImage(image: ProductImage) {
 
       <section className="admin-card">
         <h2>Reservas</h2>
+        <div className="profit-filter">
+          <div className="profit-filter-fields">
+            <label>
+              Desde
+              <input
+                type="date"
+                value={profitStartDate}
+                onChange={(e) => setProfitStartDate(e.target.value)}
+              />
+            </label>
+
+            <label>
+              Hasta
+              <input
+                type="date"
+                value={profitEndDate}
+                onChange={(e) => setProfitEndDate(e.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="profit-summary">
+            <div className="profit-main">
+              <span>Ganancia estimada</span>
+              <strong>
+                {new Intl.NumberFormat('es-CO', {
+                  style: 'currency',
+                  currency: 'COP',
+                  maximumFractionDigits: 0,
+                }).format(profitSummary.estimatedProfit)}
+              </strong>
+            </div>
+
+            <div className="profit-details">
+              <div>
+                <span>Productos comprados</span>
+                <strong>{profitSummary.productsPurchased}</strong>
+              </div>
+
+              <div>
+                <span>Ventas estimadas</span>
+                <strong>
+                  {new Intl.NumberFormat('es-CO', {
+                    style: 'currency',
+                    currency: 'COP',
+                    maximumFractionDigits: 0,
+                  }).format(profitSummary.estimatedSales)}
+                </strong>
+              </div>
+
+              <div>
+                <span>Costos estimados</span>
+                <strong>
+                  {new Intl.NumberFormat('es-CO', {
+                    style: 'currency',
+                    currency: 'COP',
+                    maximumFractionDigits: 0,
+                  }).format(profitSummary.estimatedCost)}
+                </strong>
+              </div>
+            </div>
+          </div>
+        </div>
         <div className="table-wrap">
           <table>
             <thead>

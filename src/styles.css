@@ -573,3 +573,92 @@ th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid #eee8df;
   text-decoration: underline;
   cursor: pointer;
 }
+
+.profit-filter {
+  margin: 20px 0 24px;
+}
+
+.profit-filter-fields {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.profit-filter-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.profit-filter-fields input {
+  border: 1px solid #ddd3c7;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  background: #fff;
+}
+
+.profit-summary {
+  background: #f4eee5;
+  border-radius: 18px;
+  padding: 20px;
+}
+
+.profit-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ded5c9;
+}
+
+.profit-main span {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.profit-main strong {
+  font-size: 1.7rem;
+}
+
+.profit-details {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  padding-top: 16px;
+}
+
+.profit-details div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.profit-details span {
+  font-size: 0.78rem;
+  color: #716a62;
+}
+
+.profit-details strong {
+  font-size: 1rem;
+}
+
+@media (max-width: 750px) {
+  .profit-filter-fields {
+    flex-direction: column;
+  }
+
+  .profit-main {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .profit-details {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
