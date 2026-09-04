@@ -42,8 +42,18 @@ button { cursor: pointer; }
 
 .product-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
 .product-card { background: #fff; border-radius: 24px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,.05); }
-.product-image-wrap { position: relative; aspect-ratio: 1/1; background: #eee9e2; }
-.product-image { width: 100%; height: 100%; object-fit: cover; }
+.product-image-wrap {
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  overflow: hidden;
+  background: #fff;
+}
+.product-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
 .placeholder { display: grid; place-items: center; color: #888; }
 .status-pill {
   display: inline-block;
