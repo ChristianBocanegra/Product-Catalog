@@ -672,3 +672,58 @@ th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid #eee8df;
     gap: 12px;
   }
 }
+
+.option-picker { border: 0; padding: 0; margin: 0; }
+.option-picker legend { font-weight: 700; margin-bottom: 8px; }
+.option-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.option-chip {
+  min-width: 48px;
+  padding: 10px 16px;
+  border: 1px solid #d4d4d4;
+  border-radius: 999px;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.option-chip.active { background: #111; border-color: #111; color: #fff; }
+.option-chip:focus-visible { outline: 2px solid #111; outline-offset: 2px; }
+
+.card-colors { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.card-color-chip {
+  padding: 4px 10px;
+  border: 1px solid #ddd3c7;
+  border-radius: 999px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.card-color-chip.active { background: #111; border-color: #111; color: #fff; }
+.card-color-chip:focus-visible { outline: 2px solid #111; outline-offset: 2px; }
+.card-color-more { font-size: 0.78rem; color: #716a62; align-self: center; }
+
+.detail-option-group { margin: 16px 0 4px; }
+.detail-option-label { font-weight: 700; margin: 0 0 8px; }
+
+.image-color-select {
+  width: 100%;
+  padding: 5px 6px;
+  border: 1px solid #ddd3c7;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.75rem;
+  background: #fff;
+}
+
+.option-chip:disabled {
+  opacity: 0.4;
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+.color-size-grid span { font-weight: 700; }
+.color-size-grid .muted { margin: 4px 0 10px; font-size: 0.85rem; }
+.color-size-grid th,
+.color-size-grid td { text-align: center; }
+.color-size-grid td:first-child { text-align: left; font-weight: 600; }
+.color-size-grid input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }

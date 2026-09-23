@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import type { Product, Reservation } from '../types'
+import type { Product, ProductImage, Reservation } from '../types'
 
 const initial = {
   name: '',
@@ -12,6 +12,13 @@ const initial = {
   price_cad: '',
   price_cop: '',
   deadline: '',
+  colors: '',
+  sizes: '',
+}
+function parseList(value: string) {
+  return Array.from(
+    new Set(value.split(',').map((item) => item.trim()).filter(Boolean))
+  )
 }
 
 export default function AdminPage() {
@@ -31,21 +38,32 @@ export default function AdminPage() {
   const imageInputRef = useRef<HTMLInputElement>(null)
   const today = new Date().toISOString().slice(0, 10)
   const endOfYear = `${new Date().getFullYear()}-12-31`
-
   const [profitStartDate, setProfitStartDate] = useState(today)
   const [profitEndDate, setProfitEndDate] = useState(endOfYear)
-
+  const [colorSizes, setColorSizes] = useState<Record<string, string[]>>({})
 
   const estimatedCostCop = costCad * rate
   const estimatedProfitCop = saleCop - estimatedCostCop
 
-  type ProductImage = {
-  id: string
-  image_url: string
-  position: number
-}
+  const formColors = parseList(form.colors)
+  const formSizes = parseList(form.sizes)
 
-const profitSummary = useMemo(() => {
+  function isSizeInColor(color: string, size: string) {
+    const list = colorSizes[color]
+    return list ? list.includes(size) : true
+  }
+
+  function toggleColorSize(color: string, size: string) {
+    setColorSizes((current) => {
+      const list = current[color] ?? formSizes
+      const next = list.includes(size)
+        ? list.filter((item) => item !== size)
+        : [...list, size]
+      return { ...current, [color]: next }
+    })
+  }
+
+  const profitSummary = useMemo(() => {
   const purchasedReservations = reservations.filter((reservation) => {
     if (
       (reservation.status !== 'purchased' &&
@@ -166,6 +184,26 @@ const [existingImages, setExistingImages] = useState<ProductImage[]>([])
   load()
 }
 
+async function setImageColor(image: ProductImage, color: string) {
+  const value = color || null
+
+  const { error } = await supabase
+    .from('product_images')
+    .update({ color: value })
+    .eq('id', image.id)
+
+  if (error) {
+    setMessage(error.message)
+    return
+  }
+
+  setExistingImages((current) =>
+    current.map((item) =>
+      item.id === image.id ? { ...item, color: value } : item
+    )
+  )
+}
+
 async function deleteProductImage(image: ProductImage) {
   if (!editingProductId) return
 
@@ -240,12 +278,16 @@ async function deleteProductImage(image: ProductImage) {
       price_cad: product.price_cad?.toString() ?? '',
       price_cop: product.price_cop.toString(),
       deadline: product.deadline ?? '',
+      colors: (product.colors ?? []).join(', '),
+      sizes: (product.sizes ?? []).join(', '),
     })
+    setColorSizes(product.color_sizes ?? {})
     const { data: images, error } = await supabase
       .from('product_images')
       .select('id, image_url, position')
       .eq('product_id', product.id)
       .order('position', { ascending: true })
+      .select('id, image_url, position, color')
 
     if (!error) {
       setExistingImages(images ?? [])
@@ -318,6 +360,28 @@ async function deleteProductImage(image: ProductImage) {
     e.preventDefault()
     setMessage('')
 
+    const colors = parseList(form.colors)
+    const sizes = parseList(form.sizes)
+    const colorSizesToSave: Record<string, string[]> = {}
+
+    if (sizes.length > 0) {
+      for (const color of colors) {
+        const list = colorSizes[color]
+        if (!list) continue
+
+        const clean = sizes.filter((size) => list.includes(size))
+
+        if (clean.length === 0) {
+          setMessage(`El color ${color} no tiene ninguna talla marcada.`)
+          return
+        }
+
+        if (clean.length < sizes.length) {
+          colorSizesToSave[color] = clean
+        }
+      }
+    }
+
     const productData = {
       name: form.name,
       brand: form.brand || null,
@@ -329,6 +393,9 @@ async function deleteProductImage(image: ProductImage) {
         : null,
       price_cop: Number(form.price_cop),
       deadline: form.deadline || null,
+      colors,
+      sizes,
+      color_sizes: colorSizesToSave,
     }
 
     if (editingProductId) {
@@ -444,6 +511,7 @@ async function deleteProductImage(image: ProductImage) {
 
     setForm(initial)
     setImageFiles([])
+    setColorSizes({})
 
     if (imageInputRef.current) {
       imageInputRef.current.value = ''
@@ -629,6 +697,58 @@ async function deleteProductImage(image: ProductImage) {
             )}
           <label>Fecha límite<input type="date" value={form.deadline} onChange={e => setForm({...form, deadline:e.target.value})} /></label>
           <label>
+            Colores (separados por coma)
+            <input
+              value={form.colors}
+              onChange={e => setForm({ ...form, colors: e.target.value })}
+              placeholder="Ej. Negro, Beige, Verde oliva"
+            />
+          </label>
+          <label>
+            Tallas (separadas por coma)
+            <input
+              value={form.sizes}
+              onChange={e => setForm({ ...form, sizes: e.target.value })}
+              placeholder="Ej. S, M, L  o  7, 7.5, 8"
+            />
+          </label>
+          {formColors.length > 0 && formSizes.length > 0 && (
+            <div className="color-size-grid full">
+              <span>Tallas por color</span>
+              <p className="muted">Desmarca las tallas que no hay en cada color.</p>
+
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Color</th>
+                      {formSizes.map((size) => (
+                        <th key={size}>{size}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {formColors.map((color) => (
+                      <tr key={color}>
+                        <td>{color}</td>
+                        {formSizes.map((size) => (
+                          <td key={size}>
+                            <input
+                              type="checkbox"
+                              aria-label={`${color} talla ${size}`}
+                              checked={isSizeInColor(color, size)}
+                              onChange={() => toggleColorSize(color, size)}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          <label>
             Fotos del producto
             <input
               ref={imageInputRef}
@@ -674,6 +794,18 @@ async function deleteProductImage(image: ProductImage) {
                       >
                         Usar como portada
                       </button>
+                    )}
+                    {parseList(form.colors).length > 0 && (
+                      <select
+                        className="image-color-select"
+                        value={image.color ?? ''}
+                        onChange={(e) => setImageColor(image, e.target.value)}
+                      >
+                        <option value="">Sin color</option>
+                        {parseList(form.colors).map((color) => (
+                          <option key={color} value={color}>{color}</option>
+                        ))}
+                      </select>
                     )}
                     <button
                       type="button"
@@ -789,6 +921,7 @@ async function deleteProductImage(image: ProductImage) {
                <th>Persona</th>
                <th>WhatsApp</th>
                <th>Producto</th>
+               <th>Color</th>
                <th>Talla</th>
                <th>Cant.</th>
                <th>Estado</th>
@@ -816,6 +949,8 @@ async function deleteProductImage(image: ProductImage) {
                     {r.products?.brand ? `${r.products.brand} · ` : ''}
                     {r.products?.name}
                   </td>
+
+                  <td>{r.color || '—'}</td>
 
                   <td>{r.size || '—'}</td>
 

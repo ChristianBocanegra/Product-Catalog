@@ -8,6 +8,7 @@ type ReservaConsultada = {
   product_name: string
   brand: string | null
   size: string | null
+  color: string | null
   quantity: number
   status: 'reserved' | 'purchased' | 'delivered' | 'cancelled'
   created_at: string
@@ -135,6 +136,12 @@ export default function SeguimientoPage() {
               <p>
                 <strong>Nombre:</strong> {reserva.customer_name}
               </p>
+
+              {reserva.color && (
+                <p>
+                  <strong>Color:</strong> {reserva.color}
+                </p>
+              )}
 
               {reserva.size && (
                 <p>

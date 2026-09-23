@@ -1,3 +1,11 @@
+export type ProductImage = {
+  id: string
+  product_id?: string
+  image_url: string
+  position: number
+  color: string | null
+}
+
 export type Product = {
   id: string
   name: string
@@ -11,6 +19,10 @@ export type Product = {
   deadline: string | null
   active: boolean
   created_at: string
+  colors: string[]
+  sizes: string[]
+  color_sizes: Record<string, string[]> | null
+  images?: ProductImage[]
 }
 
 export type Reservation = {
@@ -18,6 +30,7 @@ export type Reservation = {
   product_id: string
   customer_name: string
   phone: string
+  color: string | null
   size: string | null
   quantity: number
   status: 'reserved' | 'purchased' | 'delivered' | 'cancelled'

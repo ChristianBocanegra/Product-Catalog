@@ -1,28 +1,36 @@
 import { useEffect, useState } from 'react'
-import type { Product } from '../types'
+import type { Product, ProductImage } from '../types'
 import { supabase } from '../lib/supabase'
+import { imageForColor } from '../lib/productImages'
+import { defaultColor, sizesForColor } from '../lib/productOptions'
 import ReservationModal from './ReservationModal'
-
-type ProductImage = {
-  id: string
-  image_url: string
-  position: number
-}
 
 type ProductDetailModalProps = {
   product: Product
+  initialColor?: string | null
   onClose: () => void
   onReserve: () => void
 }
 
 export default function ProductDetailModal({
   product,
+  initialColor = null,
   onClose,
   onReserve,
 }: ProductDetailModalProps) {
-  const [images, setImages] = useState<ProductImage[]>([])
+  const colors = product.colors ?? []
+  const sizes = product.sizes ?? []
+
+  const startColor = defaultColor(product, initialColor)
+
+  const [images, setImages] = useState<ProductImage[]>(product.images ?? [])
+  const [selectedColor, setSelectedColor] = useState<string | null>(startColor)
+  const [selectedSize, setSelectedSize] = useState<string | null>(() => {
+    const available = sizesForColor(product, startColor)
+    return available.length === 1 ? available[0] : null
+  })
   const [selectedImage, setSelectedImage] = useState(
-    product.image_url ?? ''
+    imageForColor(product, startColor) ?? ''
   )
   const [reservationOpen, setReservationOpen] = useState(false)
 
@@ -30,7 +38,7 @@ export default function ProductDetailModal({
     async function loadImages() {
       const { data, error } = await supabase
         .from('product_images')
-        .select('id, image_url, position')
+        .select('id, image_url, position, color')
         .eq('product_id', product.id)
         .order('position', { ascending: true })
 
@@ -41,16 +49,38 @@ export default function ProductDetailModal({
 
       const productImages = data ?? []
       setImages(productImages)
-
-      if (product.image_url) {
-        setSelectedImage(product.image_url)
-      } else if (productImages.length > 0) {
-        setSelectedImage(productImages[0].image_url)
-      }
+      setSelectedImage(imageForColor(product, startColor, productImages) ?? '')
     }
 
     loadImages()
   }, [product])
+
+  const availableSizes = sizesForColor(product, selectedColor)
+
+  // Cambia el color y quita la talla si no existe en ese color.
+  function applyColor(color: string) {
+    setSelectedColor(color)
+
+    const available = sizesForColor(product, color)
+    if (selectedSize && !available.includes(selectedSize)) {
+      setSelectedSize(available.length === 1 ? available[0] : null)
+    }
+  }
+
+  // Clic en un botón de color: cambia color y foto.
+  function chooseColor(color: string) {
+    applyColor(color)
+    setSelectedImage(imageForColor(product, color, images) ?? '')
+  }
+
+  // Clic en una miniatura: muestra esa foto y, si tiene color, cambia el color.
+  function chooseImage(image: ProductImage) {
+    setSelectedImage(image.image_url)
+
+    if (image.color && colors.includes(image.color) && image.color !== selectedColor) {
+      applyColor(image.color)
+    }
+  }
 
   return (
     <>
@@ -63,6 +93,7 @@ export default function ProductDetailModal({
             type="button"
             className="product-detail-close"
             onClick={onClose}
+            aria-label="Cerrar"
           >
             ×
           </button>
@@ -72,7 +103,7 @@ export default function ProductDetailModal({
               {selectedImage ? (
                 <img
                   src={selectedImage}
-                  alt={product.name}
+                  alt={selectedColor ? `${product.name} en ${selectedColor}` : product.name}
                 />
               ) : (
                 <span>Sin foto</span>
@@ -90,7 +121,8 @@ export default function ProductDetailModal({
                         ? 'product-thumbnail active'
                         : 'product-thumbnail'
                     }
-                    onClick={() => setSelectedImage(image.image_url)}
+                    aria-label={image.color ? `Ver color ${image.color}` : 'Ver foto'}
+                    onClick={() => chooseImage(image)}
                   >
                     <img
                       src={image.image_url}
@@ -117,6 +149,56 @@ export default function ProductDetailModal({
               <p>{product.description}</p>
             )}
 
+            {colors.length > 0 && (
+              <div className="detail-option-group">
+                <p className="detail-option-label">
+                  Color{selectedColor ? `: ${selectedColor}` : ''}
+                </p>
+                <div className="option-list">
+                  {colors.map((color) => (
+                    <button
+                      type="button"
+                      key={color}
+                      className={selectedColor === color ? 'option-chip active' : 'option-chip'}
+                      aria-pressed={selectedColor === color}
+                      onClick={() => chooseColor(color)}
+                    >
+                      {color}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {sizes.length > 0 && (
+              <div className="detail-option-group">
+                <p className="detail-option-label">
+                  {selectedColor
+                    ? `Tallas disponibles en ${selectedColor}`
+                    : 'Tallas disponibles'}
+                </p>
+                <div className="option-list">
+                  {sizes.map((size) => {
+                    const disabled = !availableSizes.includes(size)
+
+                    return (
+                      <button
+                        type="button"
+                        key={size}
+                        className={selectedSize === size ? 'option-chip active' : 'option-chip'}
+                        aria-pressed={selectedSize === size}
+                        disabled={disabled}
+                        title={disabled ? 'No disponible en este color' : undefined}
+                        onClick={() => setSelectedSize(selectedSize === size ? null : size)}
+                      >
+                        {size}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             <strong className="product-detail-price">
               ${product.price_cop.toLocaleString('es-CO')}
             </strong>
@@ -135,6 +217,8 @@ export default function ProductDetailModal({
       {reservationOpen && (
         <ReservationModal
           product={product}
+          initialColor={selectedColor}
+          initialSize={selectedSize}
           onClose={() => setReservationOpen(false)}
           onSuccess={() => {
             setReservationOpen(false)

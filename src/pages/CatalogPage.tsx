@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import ProductCard from '../components/ProductCard'
 import { supabase } from '../lib/supabase'
-import type { Product } from '../types'
+import type { Product, ProductImage } from '../types'
 import { Link } from 'react-router-dom'
 import ProductDetailModal from '../components/ProductDetailModal'
 
@@ -10,16 +10,41 @@ export default function CatalogPage() {
   const [category, setCategory] = useState('Todos')
   const [loading, setLoading] = useState(true)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [selectedColor, setSelectedColor] = useState<string | null>(null)
 
   async function loadProducts() {
     setLoading(true)
+
     const { data, error } = await supabase
       .from('products')
       .select('*')
       .eq('active', true)
       .order('created_at', { ascending: false })
 
-    if (!error) setProducts(data ?? [])
+    if (error) {
+      setLoading(false)
+      return
+    }
+
+    const list = (data ?? []) as Product[]
+    let images: ProductImage[] = []
+
+    if (list.length > 0) {
+      const { data: imageRows } = await supabase
+        .from('product_images')
+        .select('id, product_id, image_url, position, color')
+        .in('product_id', list.map((p) => p.id))
+        .order('position', { ascending: true })
+
+      images = imageRows ?? []
+    }
+
+    setProducts(
+      list.map((product) => ({
+        ...product,
+        images: images.filter((image) => image.product_id === product.id),
+      }))
+    )
     setLoading(false)
   }
 
@@ -49,8 +74,6 @@ export default function CatalogPage() {
         </Link>
       </section>
 
-      
-
       <section className="catalog-section">
         <div className="filters">
           {categories.map((item) => (
@@ -71,11 +94,14 @@ export default function CatalogPage() {
         ) : (
           <div className="product-grid">
             {visible.map((product) => (
-              <ProductCard 
-                key={product.id} 
-                product={product} 
-                onReserved={loadProducts} 
-                onOpen={() => setSelectedProduct(product)} 
+              <ProductCard
+                key={product.id}
+                product={product}
+                onReserved={loadProducts}
+                onOpen={(color) => {
+                  setSelectedColor(color)
+                  setSelectedProduct(product)
+                }}
               />
             ))}
           </div>
@@ -85,6 +111,7 @@ export default function CatalogPage() {
       {selectedProduct && (
         <ProductDetailModal
           product={selectedProduct}
+          initialColor={selectedColor}
           onClose={() => setSelectedProduct(null)}
           onReserve={() => {
             setSelectedProduct(null)
