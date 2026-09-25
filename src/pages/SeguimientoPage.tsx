@@ -159,6 +159,21 @@ export default function SeguimientoPage() {
               <strong>{nombreEstado(reserva.status)}</strong>
             </div>
 
+            {reserva.status === 'reserved' && (
+              <p className="payment-note compact">
+                Aún no lo he comprado. Te escribiré por WhatsApp cuando lo
+                tenga; desde ese momento puedes pagar en efectivo o por
+                transferencia, a más tardar el día de la entrega.
+              </p>
+            )}
+
+            {reserva.status === 'purchased' && (
+              <p className="payment-note compact">
+                Ya compré tu producto. Puedes pagar en efectivo o por
+                transferencia, a más tardar el día de la entrega.
+              </p>
+            )}
+
             {reserva.status !== 'cancelled' ? (
               <div className="status-steps">
                 <div className="status-step">

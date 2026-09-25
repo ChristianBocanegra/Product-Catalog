@@ -120,7 +120,9 @@ export default function CatalogPage() {
       )}
 
       <footer>
-        Catálogo privado · Las reservas están sujetas a disponibilidad al momento de la compra.
+        Catálogo privado · Aquí solo se aparta: el pago es en efectivo o por transferencia,
+        después de confirmar la compra y a más tardar el día de la entrega.
+        Las reservas están sujetas a disponibilidad al momento de la compra.
       </footer>
     </main>
   )

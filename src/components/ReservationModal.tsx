@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { sizesForColor } from '../lib/productOptions'
 import type { Product } from '../types'
+import PaymentNote from './PaymentNote'
 
 function OptionPicker({
   label,
@@ -164,6 +165,8 @@ export default function ReservationModal({
               de WhatsApp para consultar el estado de tu reserva.
             </p>
 
+            <PaymentNote compact />
+
             <button
               type="button"
               className="primary-btn"
@@ -181,10 +184,7 @@ export default function ReservationModal({
 
             <h2>{product.name}</h2>
 
-            <p className="muted">
-              No se realiza ningún pago aquí. La reserva indica qué
-              producto debo comprar en Canadá.
-            </p>
+            <PaymentNote />
 
             <form onSubmit={submit} className="form-grid">
               <label>

@@ -892,3 +892,32 @@ th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid #eee8df;
 @media (prefers-reduced-motion: reduce) {
   .product-detail-main-image.zoomable img { transition: none; }
 }
+
+
+.payment-note {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 8px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #f3efe8;
+  border-left: 3px solid #181818;
+  line-height: 1.5;
+}
+
+.payment-note strong {
+  font-size: 0.95rem;
+}
+
+.payment-note p {
+  margin: 0;
+  color: #4d4a46;
+  font-size: 0.9rem;
+}
+
+.payment-note.compact {
+  display: block;
+  margin: 16px 0;
+  color: #4d4a46;
+  font-size: 0.9rem;
+}
