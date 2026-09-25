@@ -4,6 +4,12 @@ import { supabase } from '../lib/supabase'
 import { imageForColor } from '../lib/productImages'
 import { defaultColor, sizesForColor } from '../lib/productOptions'
 import ReservationModal from './ReservationModal'
+import ImageViewer from './ImageViewer'
+
+// Lupa al pasar el mouse: solo en computador (mouse, no pantalla táctil).
+const canHoverZoom =
+  typeof window !== 'undefined' &&
+  window.matchMedia('(hover: hover) and (pointer: fine)').matches
 
 type ProductDetailModalProps = {
   product: Product
@@ -33,6 +39,8 @@ export default function ProductDetailModal({
     imageForColor(product, startColor) ?? ''
   )
   const [reservationOpen, setReservationOpen] = useState(false)
+  const [viewerOpen, setViewerOpen] = useState(false)
+  const [lens, setLens] = useState<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
     async function loadImages() {
@@ -82,6 +90,11 @@ export default function ProductDetailModal({
     }
   }
 
+  // Fotos para el visor: todas las del producto, o solo la portada si no hay más.
+  const viewerImages =
+    images.length > 0 ? images.map((image) => image.image_url) : selectedImage ? [selectedImage] : []
+  const viewerStart = Math.max(0, viewerImages.indexOf(selectedImage))
+
   return (
     <>
       <div className="product-detail-overlay" onClick={onClose}>
@@ -99,16 +112,47 @@ export default function ProductDetailModal({
           </button>
 
           <div className="product-detail-gallery">
-            <div className="product-detail-main-image">
-              {selectedImage ? (
+            {selectedImage ? (
+              <button
+                type="button"
+                className="product-detail-main-image zoomable"
+                aria-label="Ampliar foto"
+                onClick={() => {
+                  setLens(null)
+                  setViewerOpen(true)
+                }}
+                onMouseMove={(e) => {
+                  if (!canHoverZoom) return
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  setLens({
+                    x: ((e.clientX - rect.left) / rect.width) * 100,
+                    y: ((e.clientY - rect.top) / rect.height) * 100,
+                  })
+                }}
+                onMouseLeave={() => setLens(null)}
+              >
                 <img
                   src={selectedImage}
                   alt={selectedColor ? `${product.name} en ${selectedColor}` : product.name}
+                  style={
+                    lens
+                      ? { transform: 'scale(2)', transformOrigin: `${lens.x}% ${lens.y}%` }
+                      : undefined
+                  }
                 />
-              ) : (
+                <span className="zoom-hint" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="M16.5 16.5 21 21M11 8v6M8 11h6" />
+                  </svg>
+                  {canHoverZoom ? 'Clic para ampliar' : 'Toca para ampliar'}
+                </span>
+              </button>
+            ) : (
+              <div className="product-detail-main-image">
                 <span>Sin foto</span>
-              )}
-            </div>
+              </div>
+            )}
 
             {images.length > 1 && (
               <div className="product-detail-thumbnails">
@@ -213,6 +257,19 @@ export default function ProductDetailModal({
           </div>
         </div>
       </div>
+
+      {viewerOpen && viewerImages.length > 0 && (
+        <ImageViewer
+          images={viewerImages}
+          startIndex={viewerStart}
+          alt={product.name}
+          onClose={() => setViewerOpen(false)}
+          onIndexChange={(index) => {
+            const image = images[index]
+            if (image) chooseImage(image)
+          }}
+        />
+      )}
 
       {reservationOpen && (
         <ReservationModal
